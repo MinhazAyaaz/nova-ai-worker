@@ -1,0 +1,12 @@
+# Nova - Parkline Dental voice agent
+# Install:  pip install -r requirements.txt
+
+# LiveKit Agents framework (v1.x AgentSession API).
+# Pulls in livekit + livekit-api transitively; livekit-api is pinned
+# explicitly because agent.py imports `from livekit import api` directly
+# for api.DeleteRoomRequest in end_call.
+livekit-agents==1.7.0
+livekit-api==1.2.0
+
+# Loads LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET from .env
+python-dotenv==1.2.3
