@@ -11,6 +11,10 @@ from livekit.agents import get_job_context, inference
 
 load_dotenv()
 
+# Container filesystems are wiped on every deploy/restart. Point DATA_DIR at a
+# mounted Render Disk so confirmed bookings outlive the container.
+DATA_DIR = os.getenv("DATA_DIR", os.path.dirname(os.path.abspath(__file__)))
+
 SYSTEM_PROMPT = """You are Nova, a female inbound patient-facing voice agent for Parkline Dental, a two-chair practice in Harris Park, NSW.
 Practice: 7 Albion St, Harris Park NSW.
 Hours: Mon-Thu 8:30-17:30, Fri 8:30-16:00, Sat 9:00-13:00, closed Sunday.
@@ -46,8 +50,9 @@ class DentalAgent(Agent):
         # Initialize the new Agent class with the system instructions
         super().__init__(instructions=SYSTEM_PROMPT)
         self.room = room
-        self.db_file = "bookings.json"
-        
+        os.makedirs(DATA_DIR, exist_ok=True)
+        self.db_file = os.path.join(DATA_DIR, "bookings.json")
+
         if not os.path.exists(self.db_file):
             with open(self.db_file, "w") as f:
                 json.dump([], f)

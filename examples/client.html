@@ -1,0 +1,64 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Nova — Parkline Dental test client</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 32rem; margin: 4rem auto; padding: 0 1rem; }
+  button { font-size: 1rem; padding: .6rem 1.2rem; cursor: pointer; }
+  #status { margin-top: 1rem; color: #555; }
+</style>
+
+<h1>Parkline Dental</h1>
+<button id="call">Call Nova</button>
+<button id="hangup" hidden>Hang up</button>
+<p id="status">Idle.</p>
+<div id="audio"></div>
+
+<script type="module">
+import { Room, RoomEvent, Track } from 'https://esm.sh/livekit-client@2';
+
+// Your deployed Render URL. Use http://localhost:8080 to test against a local `python server.py`.
+const API = 'http://localhost:8080';
+const API_KEY = '';   // set only if you configured TOKEN_API_KEY on the service
+
+const $ = (id) => document.getElementById(id);
+const say = (msg) => { $('status').textContent = msg; };
+let room = null;
+
+$('call').onclick = async () => {
+  $('call').disabled = true;
+  say('Requesting access token…');
+
+  const res = await fetch(`${API}/api/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(API_KEY ? { 'X-API-Key': API_KEY } : {}) },
+    body: JSON.stringify({}),          // no `room` → the server mints a fresh one per caller
+  });
+  if (!res.ok) { say(`Token request failed: ${res.status}`); $('call').disabled = false; return; }
+  const { token, serverUrl, room: roomName } = await res.json();
+
+  room = new Room();
+
+  // Nova's voice arrives as a subscribed audio track. Without attaching it you
+  // connect successfully and hear absolutely nothing.
+  room.on(RoomEvent.TrackSubscribed, (track) => {
+    if (track.kind === Track.Kind.Audio) $('audio').appendChild(track.attach());
+  });
+
+  // end_call deletes the room server-side, so this fires as a normal ending.
+  room.on(RoomEvent.Disconnected, () => {
+    say('Call ended.');
+    $('call').disabled = false;
+    $('hangup').hidden = true;
+    $('audio').replaceChildren();
+    room = null;
+  });
+
+  say(`Connecting to ${roomName}…`);
+  await room.connect(serverUrl, token);
+  await room.localParticipant.setMicrophoneEnabled(true);   // prompts for mic
+  $('hangup').hidden = false;
+  say('Connected — Nova should greet you.');
+};
+
+$('hangup').onclick = () => room?.disconnect();
+</script>
